@@ -1,0 +1,22 @@
+:root{
+   --base-color: white;
+  --base-variant :rgba(255, 255, 255, 0.87);
+  --text-color:#111528;
+  --secondary-text:#232738;
+  --primary-color:#3a454d;
+  --accend-color:#0071; 
+}
+
+   .darkmode{
+     --base-color: #070b1d;
+  --base-variant :#101425;
+  --text-color:#ffffff;
+  --secondary-text:#232738;
+  --primary-color:#3a454d;
+  --accend-color:#0071; 
+}
+*{
+
+  margin: 0;
+  padding: 0;
+}
