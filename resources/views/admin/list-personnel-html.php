@@ -3,24 +3,38 @@
 require_once 'database/database.php';
 
 // Récupération de tous les employés
-$sql = "SELECT id_user, Nom, prenom, Email, profil_picture, Role, created_at 
-        FROM users 
+$sql = "SELECT id, nom, prenom, email, profil, role, created_at
+        FROM users
+        WHERE role = 'employer'
         ORDER BY created_at DESC";
+
 $stmt = $pdo->query($sql);
 $employes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <title>Dashboard Administrateur</title>
-    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <style>
         body {
             font-family: Arial, sans-serif;
             background: #f4f6f9;
             padding: 20px;
+        }
+        h2 {
+            margin-bottom: 15px;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 15px;
+            padding: 8px 12px;
+            background-color: #ccc;
+            color: #000;
+            border-radius: 6px;
+            text-decoration: none;
         }
         table {
             width: 100%;
@@ -46,56 +60,59 @@ $employes = $stmt->fetchAll(PDO::FETCH_ASSOC);
             border-radius: 50%;
             object-fit: cover;
         }
-    .bx.bxs-trash{
-        color: red;
-        font-size: 1rem;
-    }
-    .bx.bxs-edit{
-        color: blue;
-        font-size: 1rem;
-    }
+        .actions i {
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+        .actions .edit { color: blue; }
+        .actions .delete { color: red; }
     </style>
 </head>
 <body>
 
-<h2>Liste des Employés</h2>
+<h2>Liste des employés</h2>
+
+<a href="index.php" class="back-btn">Retour</a>
 
 <table>
     <thead>
         <tr>
-            <th>Photo</th>
+            <th>ID</th>
             <th>Nom</th>
             <th>Prénom</th>
             <th>Email</th>
             <th>Rôle</th>
-            <th>Creation date</th>
-           <th>ACTION</th>
-
+            <th>Photo</th>
+            <th>Action</th>
         </tr>
     </thead>
     <tbody>
-        <?php if (!empty($employes)): ?>
-            <?php foreach ($employes as $emp): ?>
+        <?php if(!empty($employes)): ?>
+            <?php foreach($employes as $emp): ?>
                 <tr>
+                    <td><?= htmlspecialchars($emp['id']) ?></td>
+                    <td><?= htmlspecialchars($emp['nom']) ?></td>
+                    <td><?= htmlspecialchars($emp['prenom']) ?></td>
+                    <td><?= htmlspecialchars($emp['email']) ?></td>
+                    <td><?= htmlspecialchars($emp['role']) ?></td>
                     <td>
-                        <?php if ($emp['profil_picture']): ?>
-                            <img src="<?= htmlspecialchars($emp['profil_picture']) ?>" alt="Photo">
+                        <?php if(!empty($emp['profil'])): ?>
+                            <img src="uploads/<?= htmlspecialchars($emp['profil']) ?>" alt="profil">
                         <?php else: ?>
-                            <img src="." alt="Photo">
+                            -
                         <?php endif; ?>
                     </td>
-                    <td><?= htmlspecialchars($emp['Nom']) ?></td>
-                    <td><?= htmlspecialchars($emp['prenom']) ?></td>
-                    <td><?= htmlspecialchars($emp['Email']) ?></td>
-                    <td><?= htmlspecialchars($emp['Role'] ?? '—') ?></td>
-                    <td><?= htmlspecialchars($emp['created_at']) ?></td>
-                  <td><a href="update.php?id=<?= $emp['id_user']; ?>"> 
-                  <button name="update"><i class='bx bxs-edit'></i></button></a></td>
-                    <td><a href="delete.php?id=<?= $emp['id_user']; ?>"></a><button><i class='bx bxs-trash'></i>  </button></td>
+                    <td class="actions">
+                        <i class="bx bxs-edit edit"></i>
+                        <i class="bx bxs-trash delete"></i>
+                    </td>
                 </tr>
             <?php endforeach; ?>
         <?php else: ?>
-            <tr><td colspan="6">Aucun employé trouvé</td></tr>
+            <tr>
+                <td colspan="7">Aucun employé trouvé.</td>
+            </tr>
         <?php endif; ?>
     </tbody>
 </table>

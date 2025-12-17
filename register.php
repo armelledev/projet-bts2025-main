@@ -2,68 +2,82 @@
 session_start();
 require_once 'database/database.php';
 
-$errors = [
-    'nom' => '',
-    'prenom' => '',
-    'email' => '',
-    'password' => ''
-];
+$errors = [];
 
-$success = "";
+if (isset($_POST['register'])) {
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $nom     = trim($_POST['nom'] ?? '');
+    $prenom  = trim($_POST['prenom'] ?? '');
+    $email   = trim($_POST['email'] ?? '');
+    $password= trim($_POST['password'] ?? '');
+    $role    = trim($_POST['role'] ?? '');
+    $profil  = $_FILES['profil'] ?? null;
 
-    $nom = trim($_POST['Nom'] ?? '');
-    $prenom = trim($_POST['prenom'] ?? '');
-    $email = trim($_POST['Email'] ?? '');
-    $password = $_POST['password'] ?? '';
-    $role = $_POST['Role'] ?? 'default';
-
-    // Vérification des champs
+    // ===== VALIDATIONS =====
     if (empty($nom)) {
-        $errors['nom'] = "Le nom est obligatoire.";
+        $errors['nom'] = "Le nom est obligatoire";
     }
 
     if (empty($prenom)) {
-        $errors['prenom'] = "Le prénom est obligatoire.";
+        $errors['prenom'] = "Le prénom est obligatoire";
     }
 
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors['email'] = "Email invalide.";
+    if (empty($email)) {
+        $errors['email'] = "L'email est obligatoire";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors['email'] = "Email invalide";
     }
 
-    if (strlen($password) < 6) {
-        $errors['password'] = "Le mot de passe doit contenir au moins 6 caractères.";
+    if (empty($password)) {
+        $errors['password'] = "Mot de passe obligatoire";
+    } elseif (strlen($password) < 6) {
+        $errors['password'] = "Minimum 6 caractères";
     }
 
-    // Vérifier si email existe déjà
-    if (empty($errors['email'])) {
-        $check = $pdo->prepare("SELECT id_user FROM users WHERE email=?");
-        $check->execute([$email]);
-        if ($check->fetch()) {
-            $errors['email'] = "Cet email est déjà utilisé.";
+    if (!in_array($role, ['employer', 'administrateur'])) {
+        $errors['role'] = "Rôle invalide";
+    }
+
+    // ===== UPLOAD IMAGE (OPTIONNEL) =====
+    $filename = null;
+    if ($profil && $profil['error'] === 0) {
+        $allowed = ['image/jpeg','image/png','image/gif'];
+        if (!in_array($profil['type'], $allowed)) {
+            $errors['profil'] = "Image JPG, PNG ou GIF seulement";
+        } else {
+            $uploadDir = 'uploads/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            $filename = uniqid() . '_' . basename($profil['name']);
+            move_uploaded_file($profil['tmp_name'], $uploadDir . $filename);
         }
     }
 
-    // Si pas d'erreurs
-    if (!array_filter($errors)) {  // vérifie si le tableau d'erreur est vide
-        $hash = password_hash($password, PASSWORD_BCRYPT);
+    // ===== INSERTION EN BASE =====
+    if (empty($errors)) {
 
-        $sql = "INSERT INTO users (Nom, prenom, Email, password, Role, created_at)
-                VALUES (?, ?, ?, ?, ?, NOW())";
+        $sql = "INSERT INTO users (nom, prenom, email, password, role, profil)
+                VALUES (:nom, :prenom, :email, :password, :role, :profil)";
 
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$nom, $prenom, $email, $hash, $role]);
+        $stmt->execute([
+            ':nom'      => $nom,
+            ':prenom'   => $prenom,
+            ':email'    => $email,
+            ':password' => password_hash($password, PASSWORD_DEFAULT),
+            ':role'     => $role,
+            ':profil'   => $filename
+        ]);
 
-        $success = "Inscription réussie ! Vous pouvez vous connecter.";
+        $_SESSION['success'] = "Utilisateur enregistré avec succès";
+        header("Location: list-persons.php");
+        exit;
     }
 }
 
-$pageTitle = "page d'accueille";
-
+$pageTitle = "Inscription";
 ob_start();
 require_once('resources/views/admin/register-html.php');
 $pageContent = ob_get_clean();
-
 require_once('resources/views/layouts/presence-layout/presence-layout_html.php');
-?>

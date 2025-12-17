@@ -1,16 +1,17 @@
 <?php
-$servername = "localhost";
-$username = "root";
-$password = "";
-$database = "gestion_presence_de_personnelle";
+define("DBNAME", "gestion_presence_personnelle");
+define("DBHOST", "localhost");
+define("DBUSER", "postgres");
+define("DBPASS", "postgres");
+define("PORT", "5432");
+
 try {
-    $pdo = new PDO("mysql:host=$servername;dbname=$database;charset=utf8" , $username ,$password);
-    $pdo->setAttribute(PDO:: ATTR_ERRMODE , PDO:: ERRMODE_EXCEPTION);
-    //  echo"connexion reussir a la base de donnee";
+    $dcn = "pgsql:host=" . DBHOST . ";dbname=" . DBNAME . ";port=". PORT .";";
+    $pdo = new PDO($dcn, DBUSER, DBPASS);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
+    // echo "Connexion réussie";
 } catch (PDOException $e) {
-
-    echo("echec de connexion a la base de donnees");  
+    echo "Erreur : " . $e->getMessage();
 }
-
 ?>

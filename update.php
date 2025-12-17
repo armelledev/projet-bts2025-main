@@ -1,64 +1,83 @@
 <?php
-
-
-require_once('database/database.php');
-
 session_start();
+require_once 'database/database.php';
 
+$errors = [];
 
-if (isset($_GET['id_user'])) {
-    var_dump($_GET['id']);
-    die();
-    $id = $_GET['id_user'];
+// Récupération de l'utilisateur à modifier
+if (!isset($_GET['id'])) {
+    header("Location: employes-list.php");
+    exit;
+}
 
-    // Récupération de l'utilisateur
-    $sql = "SELECT * FROM users WHERE id_user = ?";
-    $query = $pdo->prepare($sql);
-    $query->execute([$id]);
-    $person = $query->fetch(PDO::FETCH_ASSOC);
+$id = (int)$_GET['id'];
 
-    // Si le formulaire est soumis
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $name = $_POST['Nom'] ?? '';
-        $prenom = $_POST['prenom'] ?? '';
-        $email = $_POST['Email'] ?? '';
-        $role = $_POST['Role'] ?? '';
-        $password = $_POST['password'] ?? '';
-        $photo = $_FILES['profil_picture']['name'] ?? '';
+$stmt = $pdo->prepare("SELECT * FROM users WHERE id = :id");
+$stmt->execute(['id' => $id]);
+$user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Hachage du mot de passe seulement si modifié
-        if (!empty($password)) {
-            $password = password_hash($password, PASSWORD_BCRYPT);
+if (!$user) {
+    die("Utilisateur introuvable");
+}
+
+// Traitement du formulaire
+if (isset($_POST['update'])) {
+    $nom     = trim($_POST['nom'] ?? '');
+    $prenom  = trim($_POST['prenom'] ?? '');
+    $email   = trim($_POST['email'] ?? '');
+    $password= trim($_POST['password'] ?? '');
+    $role    = trim($_POST['role'] ?? '');
+    $profil  = $_FILES['profil'] ?? null;
+
+    // Validation simple
+    if (empty($nom)) $errors['nom'] = "Le nom est obligatoire";
+    if (empty($prenom)) $errors['prenom'] = "Le prénom est obligatoire";
+    if (empty($email)) $errors['email'] = "L'email est obligatoire";
+    elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors['email'] = "Email invalide";
+    if (!in_array($role, ['employer','administrateur'])) $errors['role'] = "Rôle invalide";
+
+    // Vérifier doublon email (autre utilisateur)
+    $check = $pdo->prepare("SELECT id FROM users WHERE email = :email AND id != :id");
+    $check->execute(['email'=>$email, 'id'=>$id]);
+    if ($check->fetch()) $errors['email'] = "Cet email est déjà utilisé";
+
+    // Upload image optionnelle
+    $filename = $user['profil']; // conserver l'ancienne image
+    if ($profil && $profil['error'] === 0) {
+        $allowed = ['image/jpeg','image/png','image/gif'];
+        if (!in_array($profil['type'], $allowed)) {
+            $errors['profil'] = "Image JPG, PNG ou GIF seulement";
         } else {
-            $password = $person['password'];
+            $uploadDir = 'uploads/';
+            if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+            $filename = uniqid() . '_' . basename($profil['name']);
+            move_uploaded_file($profil['tmp_name'], $uploadDir . $filename);
         }
-
-        // Upload photo si présente
-        if (!empty($photo)) {
-            move_uploaded_file($_FILES['profil_picture']['tmp_name'], 'uploads/' . $photo);
-        } else {
-            $photo = $person['photo_profil'];
-        }
-
-        // Mise à jour
-        $sql = "UPDATE users SET Nom=?, prenom=?, Email=?, password=?, profil_picture=?, Role=? WHERE id_user=?";
-        $query = $pdo->prepare($sql);
-        $query->execute([$name, $prenom, $email, $password, $photo, $role, $id]);
-
-        header('Location: admin-dashboard-html.php');
-        exit();
     }
-} 
 
+    // Mise à jour si pas d'erreurs
+    if (empty($errors)) {
+        $sql = "UPDATE users SET nom=:nom, prenom=:prenom, email=:email, role=:role, profil=:profil";
+        $params = [
+            ':nom'=>$nom, ':prenom'=>$prenom, ':email'=>$email,
+            ':role'=>$role, ':profil'=>$filename, ':id'=>$id
+        ];
 
+        // Mettre à jour le mot de passe si rempli
+        if (!empty($password)) {
+            $sql .= ", password=:password";
+            $params[':password'] = password_hash($password, PASSWORD_DEFAULT);
+        }
 
+        $sql .= " WHERE id=:id";
 
-ob_start();
-$pageTitle= "page d'accueile";
-require_once('resources/views/admin/update-person-html.php');
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
 
-$pageContent = ob_get_clean();
+        $_SESSION['success'] = "Utilisateur mis à jour avec succès";
+        header("Location: employes-list.php");
+        exit;
+    }
+}
 
-require_once('resources/views/layouts/admin-layout/layout_html.php');
 ?>
-
